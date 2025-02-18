@@ -355,6 +355,7 @@ fn read_hierarchy_inner(
             let signal_tpe = match raw_vcd_var_tpe {
                 VarType::String => SignalEncoding::String,
                 VarType::Real | VarType::RealTime | VarType::ShortReal => SignalEncoding::Real,
+                VarType::Event => SignalEncoding::Event,
                 _ => SignalEncoding::bit_vec_of_len(length),
             };
             // combine the raw variable type with VHDL type attributes

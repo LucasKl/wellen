@@ -176,6 +176,11 @@ pub(crate) fn load_compressed_signal(
                     &mut data_bytes,
                 );
             }
+            SignalEncoding::Event => load_event_signal(
+                &mut data.as_ref(),
+                time_idx_offset,
+                &mut time_indices
+            ),
         }
     }
 
@@ -204,6 +209,7 @@ pub(crate) fn load_compressed_signal(
             assert!(strings.is_empty());
             Signal::new_fixed_len(id, time_indices, FixedWidthEncoding::Real, 8, data_bytes)
         }
+        SignalEncoding::Event => Signal::new_event(id, time_indices),
     }
 }
 
@@ -242,6 +248,21 @@ fn load_reals(
             out.append(&mut buf);
             time_indices.push(last_time_idx)
         }
+    }
+}
+
+#[inline]
+fn load_event_signal(
+    data: &mut impl Read,
+    time_idx_offset: u32,
+    time_indices: &mut Vec<TimeTableIdx>,
+) {
+    let mut last_time_idx = time_idx_offset;
+
+    while let Ok(value) = leb128::read::unsigned(data) {
+        let time_idx_delta = (value as u32) >> 4;
+        time_indices.push(last_time_idx);
+        last_time_idx += time_idx_delta;
     }
 }
 
@@ -855,6 +876,9 @@ impl SignalEncoder {
                 // write var-length time index + fixed little endian float bytes
                 leb128::write::unsigned(&mut self.data, time_idx_delta as u64).unwrap();
                 self.data.extend_from_slice(&float_value.to_le_bytes());
+            }
+            SignalEncoding::Event => {
+                leb128::write::unsigned(&mut self.data, time_idx_delta as u64).unwrap();
             }
         }
         self.prev_time_idx = time_index;

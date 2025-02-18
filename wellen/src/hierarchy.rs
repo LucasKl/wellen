@@ -277,6 +277,8 @@ pub enum SignalEncoding {
     Real,
     /// encoded as a fixed width bit-vector
     BitVector(NonZeroU32),
+    /// No data is encoded for events
+    Event,
 }
 
 impl SignalEncoding {
@@ -366,6 +368,7 @@ impl Var {
             SignalEncoding::String => None,
             SignalEncoding::Real => None,
             SignalEncoding::BitVector(len) => Some(len.get()),
+            SignalEncoding::Event => None,
         }
     }
     pub fn is_real(&self) -> bool {

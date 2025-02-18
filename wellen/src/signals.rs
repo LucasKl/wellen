@@ -23,6 +23,7 @@ pub enum SignalValue<'a> {
     NineValue(&'a [u8], u32),
     String(&'a str),
     Real(Real),
+    Event,
 }
 
 impl Display for SignalValue<'_> {
@@ -39,6 +40,7 @@ impl Display for SignalValue<'_> {
             }
             SignalValue::String(value) => write!(f, "{}", value),
             SignalValue::Real(value) => write!(f, "{}", value),
+            SignalValue::Event => write!(f, "Event"),
         }
     }
 }
@@ -225,6 +227,16 @@ impl PartialEq for Signal {
 impl Eq for Signal {}
 
 impl Signal {
+    pub fn new_event(
+        idx: SignalRef,
+        time_indices: Vec<TimeTableIdx>,
+    ) -> Self {
+        Signal {
+            idx,
+            time_indices,
+            data: SignalChangeData::None,
+        }
+    }
     pub fn new_fixed_len(
         idx: SignalRef,
         time_indices: Vec<TimeTableIdx>,
@@ -268,6 +280,7 @@ impl Signal {
                 .iter()
                 .map(|s| s.len() + std::mem::size_of::<String>())
                 .sum::<usize>(),
+            SignalChangeData::None => 0,
         };
         base + time + data
     }
@@ -599,6 +612,7 @@ pub struct DataOffset {
 #[derive(Eq, PartialEq)]
 #[cfg_attr(feature = "serde1", derive(serde::Serialize, serde::Deserialize))]
 enum SignalChangeData {
+    None,
     FixedLength {
         encoding: FixedWidthEncoding,
         width: u32, // bytes per entry
@@ -612,6 +626,7 @@ impl SignalChangeData {
         match self {
             SignalChangeData::FixedLength { encoding, .. } => encoding.signal_encoding(),
             SignalChangeData::VariableLength(_) => SignalEncoding::String,
+            SignalChangeData::None => SignalEncoding::Event,
         }
     }
 
@@ -620,6 +635,7 @@ impl SignalChangeData {
         match self {
             SignalChangeData::FixedLength { bytes, .. } => bytes.is_empty(),
             SignalChangeData::VariableLength(data) => data.is_empty(),
+            SignalChangeData::None => true,
         }
     }
 }
@@ -639,6 +655,7 @@ impl Debug for SignalChangeData {
             SignalChangeData::VariableLength(values) => {
                 write!(f, "SignalChangeData({} strings)", values.len())
             }
+            SignalChangeData::None => write!(f, "SignalChangeData(None)"),
         }
     }
 }
@@ -695,6 +712,7 @@ impl SignalChangeData {
                 }
             }
             SignalChangeData::VariableLength(strings) => SignalValue::String(&strings[offset]),
+            SignalChangeData::None => SignalValue::Event,
         }
     }
 }
